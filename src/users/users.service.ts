@@ -23,7 +23,12 @@ export class UsersService {
       );
     }
     const signupVerifyToken = uuid.v1();
-    await this.saveUser(name, email, password, signupVerifyToken);
+    await this.saveUserUsingTransaction(
+      name,
+      email,
+      password,
+      signupVerifyToken,
+    );
     await this.senMemberJoinEmail(email, signupVerifyToken);
   }
   async verifyEmail(signupVerifyToken: string): Promise<string> {
@@ -49,20 +54,22 @@ export class UsersService {
     });
     return user !== undefined;
   }
-  private async saveUser(
+  private async saveUserUsingTransaction(
     name: string,
     email: string,
     password: string,
     signupVerifyToken: string,
   ) {
-    const user = new UserEntity();
-    user.id = ulid();
-    console.log(user.id);
-    user.name = name;
-    user.email = email;
-    user.password = password;
-    user.signupVerifyToken = signupVerifyToken;
-    await this.userRepository.save(user);
+    await this.dataSource.transaction(async (manager) => {
+      const user = new UserEntity();
+      user.id = ulid();
+      console.log(user.id);
+      user.name = name;
+      user.email = email;
+      user.password = password;
+      user.signupVerifyToken = signupVerifyToken;
+      await this.userRepository.save(user);
+    });
   }
   private async senMemberJoinEmail(email: string, signupVerifyToken: string) {
     await this.emailService.sendMemberJoinVerification(
