@@ -23,7 +23,7 @@ export class UsersService {
       );
     }
     const signupVerifyToken = uuid.v1();
-    await this.saveUser(name, email, password, signupVerifyToken);
+    await this.saveUserQueryRunner(name, email, password, signupVerifyToken);
     await this.senMemberJoinEmail(email, signupVerifyToken);
   }
   async verifyEmail(signupVerifyToken: string): Promise<string> {
@@ -49,20 +49,30 @@ export class UsersService {
     });
     return user !== undefined;
   }
-  private async saveUser(
+  private async saveUserQueryRunner(
     name: string,
     email: string,
     password: string,
     signupVerifyToken: string,
   ) {
-    const user = new UserEntity();
-    user.id = ulid();
-    console.log(user.id);
-    user.name = name;
-    user.email = email;
-    user.password = password;
-    user.signupVerifyToken = signupVerifyToken;
-    await this.userRepository.save(user);
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    try {
+      const user = new UserEntity();
+      user.id = ulid();
+      console.log(user.id);
+      user.name = name;
+      user.email = email;
+      user.password = password;
+      user.signupVerifyToken = signupVerifyToken;
+      await this.userRepository.save(user);
+      await queryRunner.commitTransaction();
+    } catch (e) {
+      await queryRunner.rollbackTransaction();
+    } finally {
+      await queryRunner.release();
+    }
   }
   private async senMemberJoinEmail(email: string, signupVerifyToken: string) {
     await this.emailService.sendMemberJoinVerification(
