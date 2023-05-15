@@ -63,12 +63,12 @@ export class UsersService {
     await this.dataSource.transaction(async (manager) => {
       const user = new UserEntity();
       user.id = ulid();
-      console.log(user.id);
       user.name = name;
       user.email = email;
       user.password = password;
       user.signupVerifyToken = signupVerifyToken;
-      await this.userRepository.save(user);
+
+      await manager.save(user);
     });
   }
   private async senMemberJoinEmail(email: string, signupVerifyToken: string) {
